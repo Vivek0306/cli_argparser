@@ -45,9 +45,10 @@ class ArgumentParser:
         } 
     
     def print_help(self):
-        header_txt = f'''usage: {sys.argv[0]}
+        usage_text  = f"usage: {sys.argv[0]} [-h] " + " ".join(map(lambda x: f'[{x}]', list(self.arguments.keys())))
+        header_txt = f'''{usage_text} 
 
-File Organizer CLI Tool - Arrange files into directories based on file types or undo the arrangement.
+{self.description}
 
 options:'''
         for arg, props in self.arguments.items():
@@ -61,6 +62,10 @@ options:'''
         input_args = sys.argv[1:]
         input_dict = {}
 
+        if '--help' in input_args or '-h' in input_args:
+            print(self.print_help())
+            sys.exit(0)
+
         for i in range(len(input_args)):
             if input_args[i].startswith('--'):
                 key = input_args[i]
@@ -71,6 +76,7 @@ options:'''
 
         if not input_dict:
             print("No arguments provided. Use --help to see available options.")
+            sys.exit(1)  
 
         for arg, properties in self.arguments.items():
             if arg in input_dict:

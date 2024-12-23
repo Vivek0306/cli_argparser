@@ -23,12 +23,13 @@ class ArgumentParser:
         self.arguments = {}
         self.parsed_args = {}
 
-    def add_argument(self, name, required = False, help = None, action = None):
+    def add_argument(self, name, alias = None, required = False, help = None, action = None):
         '''
         Add New Argument
 
         Each Argument would have 3 properties:
-            - name => Name of the actual argument.
+            - name => Name of the actual argument (e.g., '--arrange').
+            - alias => Shortened single-hyphen form (e.g., '-a').
             - required => Whether it is required to supply the argument while running the code.
             - help => Help message describing the argument.
             - action => Special actions that needs to be done.
@@ -36,10 +37,14 @@ class ArgumentParser:
         '''
 
         if not name.startswith("--"):
-            raise ValueError("Arguments should start with '--'.")
+            raise ValueError("Arguments should start with '--' or '-'.")
+
+        if alias and not alias.startswith("-"):
+            raise ValueError("Aliases should start with '-'.")
 
         self.arguments[name] = {
             'required': required,
+            'alias': alias,            
             'help': help,
             'action': action
         } 
@@ -52,7 +57,8 @@ class ArgumentParser:
 
 options:'''
         for arg, props in self.arguments.items():
-            header_txt += f"\n  {arg:<15}    {props['help']}"
+            aliases = f"{arg}, {props['alias']}" if props['alias'] else arg
+            header_txt += f"\n  {aliases:<20}    {props['help']}"
         return header_txt
 
     def parse_args(self):
@@ -67,12 +73,13 @@ options:'''
             sys.exit(0)
 
         for i in range(len(input_args)):
-            if input_args[i].startswith('--'):
-                key = input_args[i]
-                if i + 1 < len(input_args) and not input_args[i+1].startswith('--'):
-                    input_dict[key] = input_args[i+1]
-                else:
-                    input_dict[key] = True
+            key = input_args[i]
+            for long_form, properties in self.arguments.items():
+                if key == long_form or key == properties['alias']:
+                    if i + 1 < len(input_args) and not input_args[i+1].startswith('-'):
+                        input_dict[long_form] = input_args[i+1]
+                    else:
+                        input_dict[long_form] = True
 
         if not input_dict:
             print("No arguments provided. Use --help to see available options.")

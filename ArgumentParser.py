@@ -13,7 +13,7 @@ import sys
 RED = "\033[91m"
 GREEN = "\033[92m"
 RESET = "\033[0m"
-
+YELLOW = "\033[93m"
 
 class Namespace:
     def __init__(self, **kwargs):
@@ -58,7 +58,7 @@ class ArgumentParser:
         '''
         error_msg = f"{RED}[ERROR]: {message}{RESET}\nUse `--help` for more information."
         if self.strict:
-            print(f"{RED}[MESSAGE]: Showing traceback since 'Strict' mode is enabled. To disable, set `strict=False`.{RESET}", file=sys.stderr)
+            print(f"{YELLOW}[MESSAGE]: Showing traceback since 'Strict' mode is enabled. To disable, set `strict=False`.{RESET}", file=sys.stderr)
             raise ValueError(error_msg)
         else:
             print(error_msg, file=sys.stderr)
@@ -160,9 +160,13 @@ options:'''
                         input_dict[long_form] = input_args[i+1]
                     else:
                         input_dict[long_form] = True
-             
+        
+        if not input_dict and len(input_args) > 0:
+            self._handle_error(f"Invalid options used.")
+            sys.exit(1)
+        
         if not input_dict:
-            print(f"{self.description}\n\nNo arguments provided. Use --help / -h to see available options.")
+            print(f"{self.description}{YELLOW}\n\nNo arguments provided. Use --help / -h to see available options.{RESET}")
             sys.exit(1)
 
         for arg, properties in self.arguments.items():
@@ -172,7 +176,7 @@ options:'''
                 else:
                     self.parsed_args[arg.lstrip("--")] = input_dict[arg]
             elif properties['required']:
-                self._handle_error(f"[ERROR] Missing required argument: {arg}")
+                self._handle_error(f"Missing required argument: {arg}")
             else:
                 self.parsed_args[arg.lstrip("--")] = False if properties["action"] == "store_true" else None    
 

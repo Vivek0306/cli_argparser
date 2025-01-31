@@ -1,4 +1,22 @@
+'''
+TODO: 
+    - For help, no need to include a special help inside of the parser. A pre-inlcuded help option with the Class itself would be better.
+    - If help is included with verbose try and show optional and required arguments for the same.
+    - Implement a verbose option that would allow detailed explanation of each argument if included
+    
+'''
+
+
+
+from multiprocessing.sharedctypes import Value
+from pydoc import describe
 import sys
+
+
+RED = "\033[91m"
+GREEN = "\033[92m"
+RESET = "\033[0m"
+
 
 class Namespace:
     def __init__(self, **kwargs):
@@ -12,7 +30,7 @@ class Namespace:
         return f"Namespace({args})"
 
 class ArgumentParser:
-    def __init__(self, description = None):
+    def __init__(self, description = 'Welcome!', strict = True):
         '''
         Argument Parser
 
@@ -22,6 +40,72 @@ class ArgumentParser:
         self.description = description
         self.arguments = {}
         self.parsed_args = {}
+        self.strict = strict
+        self.arguments['--help'] = {
+            'required': False,
+            'alias': '-h',            
+            'help': 'Shows the help message and exits the program.',
+            'action': 'store_true'
+        }
+        self.arguments['--verbose'] = {
+            'required': False,
+            'alias': '-v',            
+            'help': 'Enhances output visibility of the program.',
+            'action': 'store_true'
+        }
+    def _handle_error(self, message):
+        '''
+        Handle errors and show users error messages based on strict mode.
+
+        :param message: Error message to display or raise.
+        '''
+        error_msg = f"{RED}[ERROR]: {message}{RESET}\nUse `--help` for more information."
+        if self.strict:
+            print(f"{RED}[MESSAGE]: Showing traceback since 'Strict' mode is enabled. To disable, set `strict=False`.{RESET}", file=sys.stderr)
+            raise ValueError(error_msg)
+        else:
+            print(error_msg, file=sys.stderr)
+            sys.exit(2)
+
+    def print_help(self, verbose = False):
+        usage_text = f"usage: python {sys.argv[0]} " + " ".join(f"[{arg}]/[{self.arguments[arg]['alias']}]" if self.arguments[arg].get('alias') else f"[{arg}]"\
+            for arg in self.arguments.keys())
+            
+        helper_text = f'''{self.description} 
+
+{usage_text}
+
+options:'''
+
+
+        for arg, props in self.arguments.items():
+            aliases = f"{arg}, {props['alias']}" if props['alias'] else arg
+            helper_text += f"\n  {aliases:<20}    {props['help']}"
+
+        if verbose:
+            required_args = [arg for arg, props in self.arguments.items() if props['required']]
+            optional_args = [arg for arg, props in self.arguments.items() if not props['required']]
+
+            if required_args:
+                helper_text += "\n\nRequired Arguments:"
+                for arg in required_args:
+                    props = self.arguments[arg]
+                    aliases = f"{arg}, {props['alias']}" if props['alias'] else arg
+                    helper_text += f"\n  {aliases:<20}    {props['help']}"
+
+            if optional_args:
+                helper_text += "\n\nOptional Arguments:"
+                for arg in optional_args:
+                    props = self.arguments[arg]
+                    aliases = f"{arg}, {props['alias']}" if props['alias'] else arg
+                    helper_text += f"\n  {aliases:<20}    {props['help']}"
+
+
+
+        return helper_text
+
+
+
 
     def add_argument(self, name, alias = None, required = False, help = None, action = None):
         '''
@@ -34,13 +118,20 @@ class ArgumentParser:
             - help => Help message describing the argument.
             - action => Special actions that needs to be done.
 
+        :param name: Name of the argument (must start with '--').
+        :param alias: Alias for the argument (must start with '-').
+        :param required: Whether the argument is required.
+        :param help: Help message for the argument.
+        :param action: Special action for the argument (e.g., 'store_true').
+
         '''
 
         if not name.startswith("--"):
-            raise ValueError("Arguments should start with '--' or '-'.")
+            self._handle_error("Arguments should start with '--' or '-'.")
 
         if alias and not alias.startswith("-"):
-            raise ValueError("Aliases should start with '-'.")
+            self._handle_error("Aliases should start with '-'.")
+
 
         self.arguments[name] = {
             'required': required,
@@ -49,18 +140,6 @@ class ArgumentParser:
             'action': action
         } 
     
-    def print_help(self):
-        usage_text  = f"usage: {sys.argv[0]} [-h] " + " ".join(map(lambda x: f'[{x}]', list(self.arguments.keys())))
-        header_txt = f'''{usage_text} 
-
-{self.description}
-
-options:'''
-        for arg, props in self.arguments.items():
-            aliases = f"{arg}, {props['alias']}" if props['alias'] else arg
-            header_txt += f"\n  {aliases:<20}    {props['help']}"
-        return header_txt
-
     def parse_args(self):
         '''
         Used to parse the passed command-line arguments
@@ -69,8 +148,16 @@ options:'''
         input_dict = {}
 
         if '--help' in input_args or '-h' in input_args:
-            print(self.print_help())
+            if '--verbose' in input_args or '-v' in input_args:
+                print(self.print_help(verbose=True))
+            else:
+                print(self.print_help())
             sys.exit(0)
+
+        
+        if not input_dict:
+            print(f"{self.description}\n\nNo arguments provided. Use --help / -h to see available options.")
+            sys.exit(1)
 
         for i in range(len(input_args)):
             key = input_args[i]
@@ -80,10 +167,7 @@ options:'''
                         input_dict[long_form] = input_args[i+1]
                     else:
                         input_dict[long_form] = True
-
-        if not input_dict:
-            print("No arguments provided. Use --help to see available options.")
-            sys.exit(1)  
+             
 
         for arg, properties in self.arguments.items():
             if arg in input_dict:
@@ -92,7 +176,7 @@ options:'''
                 else:
                     self.parsed_args[arg.lstrip("--")] = input_dict[arg]
             elif properties['required']:
-                raise ValueError(f"[ERROR]: Missing required argument: {arg}")
+                self._handle_error(f"[ERROR] Missing required argument: {arg}")
             else:
                 self.parsed_args[arg.lstrip("--")] = False if properties["action"] == "store_true" else None    
 

@@ -1,9 +1,6 @@
 '''
 TODO: 
-    - For help, no need to include a special help inside of the parser. A pre-inlcuded help option with the Class itself would be better.
-    - If help is included with verbose try and show optional and required arguments for the same.
     - Implement a verbose option that would allow detailed explanation of each argument if included
-    
 '''
 
 
@@ -154,10 +151,6 @@ options:'''
                 print(self.print_help())
             sys.exit(0)
 
-        
-        if not input_dict:
-            print(f"{self.description}\n\nNo arguments provided. Use --help / -h to see available options.")
-            sys.exit(1)
 
         for i in range(len(input_args)):
             key = input_args[i]
@@ -168,6 +161,9 @@ options:'''
                     else:
                         input_dict[long_form] = True
              
+        if not input_dict:
+            print(f"{self.description}\n\nNo arguments provided. Use --help / -h to see available options.")
+            sys.exit(1)
 
         for arg, properties in self.arguments.items():
             if arg in input_dict:

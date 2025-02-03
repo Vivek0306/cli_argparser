@@ -40,23 +40,26 @@ class ArgumentParser:
         self.strict = strict
         self.arguments['--help'] = {
             'required': False,
+            'default': None,
             'alias': '-h',            
             'help': 'Shows the help message and exits the program.',
             'action': 'store_true'
         }
         self.arguments['--verbose'] = {
             'required': False,
+            'default': None,
             'alias': '-v',            
             'help': 'Enhances output visibility of the program.',
             'action': 'store_true'
         }
+
     def _handle_error(self, message):
         '''
         Handle errors and show users error messages based on strict mode.
 
         :param message: Error message to display or raise.
         '''
-        error_msg = f"{RED}[ERROR]: {message}{RESET}\nUse `--help` for more information."
+        error_msg = f"{RED}[ERROR]: {message}{RESET}\nUse `--help` or `-h` for more information."
         if self.strict:
             print(f"{YELLOW}[MESSAGE]: Showing traceback since 'Strict' mode is enabled. To disable, set `strict=False`.{RESET}", file=sys.stderr)
             raise ValueError(error_msg)
@@ -72,7 +75,7 @@ class ArgumentParser:
 
 {usage_text}
 
-options:'''
+{YELLOW}options:{RESET}'''
 
 
         for arg, props in self.arguments.items():
@@ -84,14 +87,14 @@ options:'''
             optional_args = [arg for arg, props in self.arguments.items() if not props['required']]
 
             if required_args:
-                helper_text += "\n\nRequired Arguments:"
+                helper_text += f"\n\n{YELLOW}required arguments:{RESET}"
                 for arg in required_args:
                     props = self.arguments[arg]
                     aliases = f"{arg}, {props['alias']}" if props['alias'] else arg
                     helper_text += f"\n  {aliases:<20}    {props['help']}"
 
             if optional_args:
-                helper_text += "\n\nOptional Arguments:"
+                helper_text += f"\n\n{YELLOW}optional arguments:{RESET}"
                 for arg in optional_args:
                     props = self.arguments[arg]
                     aliases = f"{arg}, {props['alias']}" if props['alias'] else arg
@@ -104,7 +107,7 @@ options:'''
 
 
 
-    def add_argument(self, name, alias = None, required = False, help = None, action = None):
+    def add_argument(self, name, alias = None, required = False, default = None, help = None, action = None):
         '''
         Add New Argument
 
@@ -132,6 +135,7 @@ options:'''
 
         self.arguments[name] = {
             'required': required,
+            'default': default,
             'alias': alias,            
             'help': help,
             'action': action
@@ -151,21 +155,22 @@ options:'''
                 print(self.print_help())
             sys.exit(0)
 
-
         for i in range(len(input_args)):
             key = input_args[i]
             for long_form, properties in self.arguments.items():
                 if key == long_form or key == properties['alias']:
                     if i + 1 < len(input_args) and not input_args[i+1].startswith('-'):
                         input_dict[long_form] = input_args[i+1]
+                    elif properties['default']:
+                        input_dict[long_form] = properties['default']
                     else:
                         input_dict[long_form] = True
-        
+
+
         if not input_dict and len(input_args) > 0:
-            self._handle_error(f"Invalid options used.")
-            sys.exit(1)
+            self._handle_error(f"Invalid option/s used.")
         
-        if not input_dict:
+        if not input_dict:  
             print(f"{self.description}{YELLOW}\n\nNo arguments provided. Use --help / -h to see available options.{RESET}")
             sys.exit(1)
 
